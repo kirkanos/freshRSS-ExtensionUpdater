@@ -27,6 +27,11 @@ return [
 		'backup_hint' => 'A backup of the previous version is kept in %s.',
 		'source_official' => 'Official index',
 		'source_custom' => 'Custom index',
+		'error' => [
+			'github_rate_limit' => 'GitHub API rate limit exhausted; update checks fall back to the indexes until %s. Add a GitHub token in the extension settings to raise the limit from 60 to 5000 requests per hour.',
+			'index_unreachable' => 'Could not load the extension index %s (%s). Extensions listed only there cannot be checked.',
+			'unknown_time' => 'an unknown time',
+		],
 		'conf' => [
 			'official_index' => 'Use the official extension index',
 			'official_index_url' => 'Index URL',

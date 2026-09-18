@@ -92,9 +92,10 @@ Every step is written to the FreshRSS log at `notice` level.
 - **Version comparison.** Versions that cannot be compared (`nightly`) never
   report an update — better to miss one than to overwrite a working extension
   with an older copy.
-- **Installer error messages are deliberately English**: they are diagnostic
-  text and appear verbatim in the log. The interface itself is translated
-  (de/en).
+- **Language.** The interface and the warnings shown on the overview are
+  translated (de/en). Installer failures and transport details stay English on
+  purpose: they are diagnostic text, appear verbatim in the log, and are what
+  an admin would quote in a bug report.
 - After an update, disable and re-enable the affected extension if it ships an
   `install()` migration.
 

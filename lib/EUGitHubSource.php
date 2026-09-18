@@ -10,11 +10,13 @@ final class EUGitHubSource implements EUSource
 {
 	private EUGitHub $github;
 	private ?EURepoUrls $repoUrls;
+	private EUText $text;
 
-	public function __construct(EUGitHub $github, ?EURepoUrls $repoUrls = null)
+	public function __construct(EUGitHub $github, ?EURepoUrls $repoUrls = null, ?EUText $text = null)
 	{
 		$this->github = $github;
 		$this->repoUrls = $repoUrls;
+		$this->text = $text ?? new EUText();
 	}
 
 	public function id(): string
@@ -33,9 +35,14 @@ final class EUGitHubSource implements EUSource
 			return null;
 		}
 		$reset = $this->github->rateLimitResetAt();
-		return sprintf(
+		$when = $reset !== null
+			? date('H:i', $reset)
+			: $this->text->t('error.unknown_time', 'an unknown time');
+
+		return $this->text->t(
+			'error.github_rate_limit',
 			'GitHub API rate limit exhausted; update checks fall back to the indexes until %s. Add a GitHub token in the extension settings to raise the limit from 60 to 5000 requests per hour.',
-			$reset !== null ? date('H:i', $reset) : 'it resets'
+			$when
 		);
 	}
 

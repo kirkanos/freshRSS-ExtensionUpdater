@@ -27,6 +27,11 @@ return [
 		'backup_hint' => 'Eine Sicherung der vorherigen Version liegt in %s.',
 		'source_official' => 'Offizieller Index',
 		'source_custom' => 'Eigener Index',
+		'error' => [
+			'github_rate_limit' => 'Das Anfragekontingent der GitHub-API ist erschöpft; bis %s stützt sich die Update-Prüfung nur noch auf die Indexe. Ein GitHub-Token in den Einstellungen hebt das Limit von 60 auf 5000 Anfragen pro Stunde.',
+			'index_unreachable' => 'Der Extension-Index %s konnte nicht geladen werden (%s). Extensions, die nur dort stehen, lassen sich nicht prüfen.',
+			'unknown_time' => 'auf unbestimmte Zeit',
+		],
 		'conf' => [
 			'official_index' => 'Offiziellen Extension-Index verwenden',
 			'official_index_url' => 'Index-URL',

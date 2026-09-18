@@ -13,15 +13,17 @@ final class EUIndexSource implements EUSource
 	private string $url;
 	private string $label;
 	private EUGitHub $github;
+	private EUText $text;
 	/** @var array<string,array<string,mixed>>|null */
 	private ?array $index = null;
 	private ?string $error = null;
 
-	public function __construct(string $url, string $label, EUGitHub $github)
+	public function __construct(string $url, string $label, EUGitHub $github, ?EUText $text = null)
 	{
 		$this->url = $url;
 		$this->label = $label;
 		$this->github = $github;
+		$this->text = $text ?? new EUText();
 	}
 
 	public function id(): string
@@ -36,7 +38,17 @@ final class EUIndexSource implements EUSource
 
 	public function error(): ?string
 	{
-		return $this->error;
+		if ($this->error === null) {
+			return null;
+		}
+		// The detail stays English: it is transport diagnostics and is what
+		// the admin would paste into a bug report.
+		return $this->text->t(
+			'error.index_unreachable',
+			'Could not load the extension index %s (%s). Extensions listed only there cannot be checked.',
+			$this->url,
+			$this->error
+		);
 	}
 
 	/** True once the index has been fetched, successfully or not. */
