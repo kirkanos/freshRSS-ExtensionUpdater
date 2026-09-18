@@ -43,7 +43,10 @@ usual archive URLs (`main`, then `master`) are tried in turn.
    `entrypoint`. A differently named directory is accepted only when the
    archive contains exactly one extension.
 4. Copy the current directory to `DATA_PATH/extension-updater/backups/`.
-5. Move the old directory aside, copy the new one in, verify it.
+5. Swap in the new version. When the parent directory is writable the old
+   directory is renamed aside first, so a rollback is a single rename. When it
+   is not, the contents are replaced in place instead and restored from the
+   backup if anything fails.
 6. Roll back to the previous version on any failure.
 
 Every step is written to the FreshRSS log at `notice` level.
@@ -65,8 +68,16 @@ Every step is written to the FreshRSS log at `notice` level.
 - **Git checkouts are not updated automatically.** Unpacking a ZIP over one
   would destroy the working tree, so the plugin only reports how many commits
   are missing and leaves `git pull` to you.
-- **Write permissions.** Many Docker setups mount `extensions/` read-only. The
-  plugin detects this and shows a note instead of the button.
+- **Write permissions.** Only the extension's own directory has to be writable
+  by the web server; a read-only `extensions/` parent is handled by replacing
+  the contents in place. If the extension directory itself is not writable the
+  plugin names the exact path instead of offering the button. Writability is
+  established by actually creating a file, because `is_writable()` misses ACLs
+  and read-only mounts. A typical fix in Docker:
+
+  ```sh
+  docker exec <container> chown -R www-data:www-data /var/www/FreshRSS/extensions
+  ```
 - **GitHub API rate limit.** The GitHub source is consulted for every extension
   whose repository can be resolved — one request each when a release exists. An
   instance with many extensions can approach the unauthenticated limit of 60

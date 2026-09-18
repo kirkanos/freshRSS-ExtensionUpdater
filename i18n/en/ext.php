@@ -17,7 +17,7 @@ return [
 		'up_to_date' => 'up to date',
 		'unknown' => 'unknown',
 		'git_pull' => 'git checkout — run “git pull”',
-		'not_writable' => 'directory is read-only',
+		'not_writable' => 'not writable by the web server: %s',
 		'no_download' => 'no download URL',
 		'no_zip' => 'The PHP “zip” extension is missing — updates can be detected but not installed.',
 		'updated' => '%s updated from %s to %s.',

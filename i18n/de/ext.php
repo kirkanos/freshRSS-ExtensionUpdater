@@ -17,7 +17,7 @@ return [
 		'up_to_date' => 'aktuell',
 		'unknown' => 'unbekannt',
 		'git_pull' => 'Git-Checkout — bitte „git pull“ ausführen',
-		'not_writable' => 'Verzeichnis ist schreibgeschützt',
+		'not_writable' => 'für den Webserver nicht beschreibbar: %s',
 		'no_download' => 'keine Download-URL',
 		'no_zip' => 'Die PHP-Erweiterung „zip“ fehlt — Updates werden erkannt, können aber nicht installiert werden.',
 		'updated' => '%s von %s auf %s aktualisiert.',

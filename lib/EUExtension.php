@@ -65,10 +65,42 @@ final class EUExtension
 		return is_dir($this->path . '/.git') || is_file($this->path . '/.git');
 	}
 
-	/** The directory must be replaceable for an in-place update to work. */
-	public function isWritable(): bool
+	/**
+	 * Replacing the directory's contents is enough to update it; that only
+	 * needs the extension directory itself to be writable.
+	 */
+	public function canReplaceContents(): bool
 	{
-		return is_writable($this->path) && is_writable(dirname($this->path));
+		return self::probeWritable($this->path);
+	}
+
+	/**
+	 * Replacing the whole directory additionally needs the parent writable,
+	 * because the old directory is renamed aside first. That is the safer
+	 * strategy, so the installer prefers it when it is available.
+	 */
+	public function canReplaceDirectory(): bool
+	{
+		return $this->canReplaceContents() && self::probeWritable(dirname($this->path));
+	}
+
+	/**
+	 * is_writable() consults the permission bits and misses ACLs, read-only
+	 * mounts and container quirks, so actually try to create a file.
+	 */
+	public static function probeWritable(string $dir): bool
+	{
+		if (!is_dir($dir)) {
+			return false;
+		}
+		$probe = rtrim($dir, '/') . '/.eu-write-probe-' . bin2hex(random_bytes(4));
+		$handle = @fopen($probe, 'w');
+		if ($handle === false) {
+			return false;
+		}
+		fclose($handle);
+		@unlink($probe);
+		return true;
 	}
 
 	/** @param array<string,mixed> $data */

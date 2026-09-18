@@ -41,6 +41,42 @@ final class EUFs
 		return @rmdir($path);
 	}
 
+	/** Removes everything inside $path but keeps $path itself. */
+	public static function emptyDir(string $path): bool
+	{
+		$entries = scandir($path);
+		if ($entries === false) {
+			return false;
+		}
+		foreach ($entries as $entry) {
+			if ($entry === '.' || $entry === '..') {
+				continue;
+			}
+			if (!self::removeTree($path . '/' . $entry)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/** Copies the contents of $source into an existing $destination. */
+	public static function copyChildren(string $source, string $destination): bool
+	{
+		$entries = scandir($source);
+		if ($entries === false) {
+			return false;
+		}
+		foreach ($entries as $entry) {
+			if ($entry === '.' || $entry === '..') {
+				continue;
+			}
+			if (!self::copyTree($source . '/' . $entry, $destination . '/' . $entry)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
 	public static function copyTree(string $source, string $destination): bool
 	{
 		if (is_link($source)) {

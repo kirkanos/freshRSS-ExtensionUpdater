@@ -106,7 +106,7 @@ final class EUInstaller
 				return 'Refusing to download from a non-https URL: ' . $zipUrl;
 			}
 		}
-		if (!$ext->isWritable()) {
+		if (!$ext->canReplaceContents()) {
 			return 'The directory ' . $ext->path . ' is not writable by the web server.';
 		}
 		if ($ext->isGitCheckout()) {
@@ -163,35 +163,85 @@ final class EUInstaller
 			return $this->fail('Could not create a backup; aborting without touching the extension.');
 		}
 
-		// Move the live directory aside rather than deleting it, so a failure
-		// during the copy is still recoverable on the same filesystem.
+		$failure = $ext->canReplaceDirectory()
+			? $this->replaceDirectory($ext, $source)
+			: $this->replaceContents($ext, $source, $backup);
+		if ($failure !== null) {
+			return $this->fail($failure);
+		}
+
+		$verified = EUExtension::fromDirectory($ext->path);
+		$this->note('Installed version ' . ($verified !== null ? $verified->version : '?'));
+
+		return [
+			'ok' => true,
+			'message' => sprintf('%s updated from %s to %s.', $ext->name, $ext->version ?: '?', ($verified->version ?? '') ?: $newVersion),
+			'backup' => $backup,
+			'version' => ($verified->version ?? '') ?: $newVersion,
+		];
+	}
+
+	/**
+	 * Preferred strategy: rename the live directory aside, so the previous
+	 * version can be put back by a single rename. Needs a writable parent.
+	 *
+	 * @return string|null error message, or null on success
+	 */
+	private function replaceDirectory(EUExtension $ext, string $source): ?string
+	{
 		$aside = $ext->path . '.eu-old-' . bin2hex(random_bytes(4));
 		if (!@rename($ext->path, $aside)) {
-			return $this->fail('Could not move the current extension out of the way.');
+			return 'Could not move the current extension out of the way.';
 		}
 
 		if (!EUFs::copyTree($source, $ext->path)) {
 			EUFs::removeTree($ext->path);
 			@rename($aside, $ext->path);
-			return $this->fail('Copying the new version failed; the previous version was restored.');
+			return 'Copying the new version failed; the previous version was restored.';
 		}
 
-		$verified = EUExtension::fromDirectory($ext->path);
-		if ($verified === null || !is_file($ext->path . '/extension.php')) {
+		if (!$this->isValidInstall($ext->path)) {
 			EUFs::removeTree($ext->path);
 			@rename($aside, $ext->path);
-			return $this->fail('The installed directory failed verification; the previous version was restored.');
+			return 'The installed directory failed verification; the previous version was restored.';
 		}
 
 		EUFs::removeTree($aside);
-		$this->note('Installed version ' . $verified->version);
+		return null;
+	}
 
-		return [
-			'ok' => true,
-			'message' => sprintf('%s updated from %s to %s.', $ext->name, $ext->version ?: '?', $verified->version ?: $newVersion),
-			'backup' => $backup,
-			'version' => $verified->version ?: $newVersion,
-		];
+	/**
+	 * Fallback for a read-only parent — common in container setups where
+	 * extensions/ is mounted read-only but the extension directories inside it
+	 * are not. Replaces the contents in place and restores them from the backup
+	 * if anything fails.
+	 *
+	 * @return string|null error message, or null on success
+	 */
+	private function replaceContents(EUExtension $ext, string $source, string $backup): ?string
+	{
+		$this->note('Parent directory is read-only; replacing contents in place.');
+
+		if (!EUFs::emptyDir($ext->path)) {
+			// Some files may already be gone, so restore before reporting.
+			EUFs::copyChildren($backup, $ext->path);
+			return 'Could not clear the extension directory; the previous version was restored.';
+		}
+
+		if (!EUFs::copyChildren($source, $ext->path) || !$this->isValidInstall($ext->path)) {
+			EUFs::emptyDir($ext->path);
+			if (!EUFs::copyChildren($backup, $ext->path)) {
+				return 'Installing failed AND restoring failed. The previous version is kept at ' . $backup;
+			}
+			return 'Installing the new version failed; the previous version was restored.';
+		}
+
+		return null;
+	}
+
+	private function isValidInstall(string $path): bool
+	{
+		return EUExtension::fromDirectory($path) !== null && is_file($path . '/extension.php');
 	}
 
 	/** @return array{ok:bool,message:string,backup:string,version:string} */
