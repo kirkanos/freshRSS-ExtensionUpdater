@@ -1,0 +1,117 @@
+<?php
+/**
+ * @var ExtensionUpdaterExtension $this ->extensionInstance
+ * @var array<string,array{ext:EUExtension,info:EUUpdateInfo|null}> $this->results
+ */
+$ext = $this->extensionInstance;
+$results = $this->results ?? [];
+$csrf = method_exists('FreshRSS_Auth', 'csrfToken') ? FreshRSS_Auth::csrfToken() : '';
+
+$pending = 0;
+foreach ($results as $row) {
+	if ($row['info'] instanceof EUUpdateInfo && $row['info']->updateAvailable) {
+		$pending++;
+	}
+}
+?>
+<div class="post extension-updater">
+	<h1><?= htmlspecialchars($ext->t('title', 'Extension updates'), ENT_QUOTES, 'UTF-8') ?></h1>
+
+	<p class="eu-summary">
+		<?= htmlspecialchars(sprintf(
+			$ext->t('summary', '%d of %d extensions have an update available.'),
+			$pending,
+			count($results)
+		), ENT_QUOTES, 'UTF-8') ?>
+		<?php if (!empty($this->checkedAt)): ?>
+			<span class="eu-muted">
+				<?= htmlspecialchars(sprintf(
+					$ext->t('checked_at', 'Last checked: %s'),
+					date('Y-m-d H:i', (int)$this->checkedAt)
+				), ENT_QUOTES, 'UTF-8') ?>
+			</span>
+		<?php endif; ?>
+	</p>
+
+	<p>
+		<a class="btn" href="<?= Minz_Url::display(['c' => 'updater', 'a' => 'index', 'params' => ['refresh' => '1']]) ?>">
+			<?= htmlspecialchars($ext->t('recheck', 'Check again now'), ENT_QUOTES, 'UTF-8') ?>
+		</a>
+	</p>
+
+	<?php if (empty($this->zipAvailable)): ?>
+		<p class="alert alert-warn"><?= htmlspecialchars($ext->t('no_zip', 'The PHP "zip" extension is missing — updates can be detected but not installed.'), ENT_QUOTES, 'UTF-8') ?></p>
+	<?php endif; ?>
+
+	<?php foreach (($this->errors ?? []) as $error): ?>
+		<p class="alert alert-warn"><?= htmlspecialchars((string)$error, ENT_QUOTES, 'UTF-8') ?></p>
+	<?php endforeach; ?>
+
+	<table class="table eu-table">
+		<thead>
+			<tr>
+				<th><?= htmlspecialchars($ext->t('col_extension', 'Extension'), ENT_QUOTES, 'UTF-8') ?></th>
+				<th><?= htmlspecialchars($ext->t('col_installed', 'Installed'), ENT_QUOTES, 'UTF-8') ?></th>
+				<th><?= htmlspecialchars($ext->t('col_available', 'Available'), ENT_QUOTES, 'UTF-8') ?></th>
+				<th><?= htmlspecialchars($ext->t('col_source', 'Source'), ENT_QUOTES, 'UTF-8') ?></th>
+				<th><?= htmlspecialchars($ext->t('col_action', 'Action'), ENT_QUOTES, 'UTF-8') ?></th>
+			</tr>
+		</thead>
+		<tbody>
+		<?php foreach ($results as $key => $row):
+			$extension = $row['ext'];
+			$info = $row['info'];
+			$hasUpdate = $info instanceof EUUpdateInfo && $info->updateAvailable;
+		?>
+			<tr class="<?= $hasUpdate ? 'eu-row-update' : '' ?>">
+				<td>
+					<strong><?= htmlspecialchars($extension->name, ENT_QUOTES, 'UTF-8') ?></strong><br />
+					<span class="eu-muted"><?= htmlspecialchars($extension->dirname, ENT_QUOTES, 'UTF-8') ?></span>
+				</td>
+				<td><?= htmlspecialchars($extension->version ?: '—', ENT_QUOTES, 'UTF-8') ?></td>
+				<td>
+					<?php if ($info instanceof EUUpdateInfo && $info->remoteVersion !== ''): ?>
+						<?php if ($info->releaseUrl !== ''): ?>
+							<a href="<?= htmlspecialchars($info->releaseUrl, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noreferrer noopener">
+								<?= htmlspecialchars($info->remoteVersion, ENT_QUOTES, 'UTF-8') ?>
+							</a>
+						<?php else: ?>
+							<?= htmlspecialchars($info->remoteVersion, ENT_QUOTES, 'UTF-8') ?>
+						<?php endif; ?>
+					<?php else: ?>
+						<span class="eu-muted"><?= htmlspecialchars($ext->t('unknown', 'unknown'), ENT_QUOTES, 'UTF-8') ?></span>
+					<?php endif; ?>
+				</td>
+				<td class="eu-muted"><?= htmlspecialchars($info instanceof EUUpdateInfo ? $info->sourceLabel : '—', ENT_QUOTES, 'UTF-8') ?></td>
+				<td>
+					<?php if (!$hasUpdate): ?>
+						<span class="eu-muted"><?= htmlspecialchars($ext->t('up_to_date', 'up to date'), ENT_QUOTES, 'UTF-8') ?></span>
+					<?php elseif ($info->note === 'git-pull-required'): ?>
+						<span class="eu-muted"><?= htmlspecialchars($ext->t('git_pull', 'git checkout — run "git pull"'), ENT_QUOTES, 'UTF-8') ?></span>
+					<?php elseif (!$extension->isWritable()): ?>
+						<span class="eu-muted"><?= htmlspecialchars($ext->t('not_writable', 'directory is read-only'), ENT_QUOTES, 'UTF-8') ?></span>
+					<?php elseif (!$info->canInstall()): ?>
+						<span class="eu-muted"><?= htmlspecialchars($ext->t('no_download', 'no download URL'), ENT_QUOTES, 'UTF-8') ?></span>
+					<?php else: ?>
+						<form method="post" action="<?= Minz_Url::display(['c' => 'updater', 'a' => 'update']) ?>" class="eu-update-form">
+							<input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8') ?>" />
+							<input type="hidden" name="key" value="<?= htmlspecialchars((string)$key, ENT_QUOTES, 'UTF-8') ?>" />
+							<button type="submit" class="btn btn-important"
+								data-confirm="<?= htmlspecialchars(sprintf($ext->t('confirm', 'Update %s now?'), $extension->name), ENT_QUOTES, 'UTF-8') ?>">
+								<?= htmlspecialchars($ext->t('update_now', 'Update'), ENT_QUOTES, 'UTF-8') ?>
+							</button>
+						</form>
+					<?php endif; ?>
+				</td>
+			</tr>
+		<?php endforeach; ?>
+		</tbody>
+	</table>
+
+	<p class="eu-muted">
+		<?= htmlspecialchars(sprintf(
+			$ext->t('backup_hint', 'A backup of the previous version is kept in %s.'),
+			EUPaths::backupDir()
+		), ENT_QUOTES, 'UTF-8') ?>
+	</p>
+</div>

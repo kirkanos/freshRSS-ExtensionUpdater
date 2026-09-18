@@ -1,0 +1,9 @@
+{
+	"name": "Extension Updater",
+	"author": "kirkanos",
+	"description": "Watches the installed FreshRSS extensions, reports available updates and installs them on demand.",
+	"version": "0.1.0",
+	"entrypoint": "ExtensionUpdater",
+	"type": "system",
+	"url": "https://github.com/kirkanos/freshRSS-ExtensionUpdater"
+}
