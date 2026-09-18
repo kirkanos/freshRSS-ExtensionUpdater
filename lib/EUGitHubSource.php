@@ -9,10 +9,12 @@ declare(strict_types=1);
 final class EUGitHubSource implements EUSource
 {
 	private EUGitHub $github;
+	private ?EURepoUrls $repoUrls;
 
-	public function __construct(EUGitHub $github)
+	public function __construct(EUGitHub $github, ?EURepoUrls $repoUrls = null)
 	{
 		$this->github = $github;
+		$this->repoUrls = $repoUrls;
 	}
 
 	public function id(): string
@@ -27,7 +29,8 @@ final class EUGitHubSource implements EUSource
 
 	public function check(EUExtension $ext): ?EUUpdateInfo
 	{
-		$repo = EUGitHub::parseRepoUrl($ext->url);
+		$url = $this->repoUrls !== null ? $this->repoUrls->resolve($ext) : $ext->url;
+		$repo = EUGitHub::parseRepoUrl($url);
 		if ($repo === null) {
 			return null;
 		}
@@ -43,15 +46,22 @@ final class EUGitHubSource implements EUSource
 			return $info;
 		}
 
-		// No usable release: compare against metadata.json on the default branch.
+		// A release exists but is not newer: trust it and stop. Probing the
+		// default branch as well would double this source's API calls for
+		// every up-to-date extension, for little gain.
+		if ($release !== null) {
+			return $this->upToDate($info, $release['version']);
+		}
+
+		// No release at all: compare against metadata.json on the default branch.
 		$branch = $this->github->defaultBranch($repo['owner'], $repo['repo']);
 		if ($branch === null) {
-			return $release === null ? null : $this->upToDate($info, $release['version']);
+			return null;
 		}
 
 		$meta = $this->github->readMetadata($repo['owner'], $repo['repo'], $branch, $ext->dirname);
 		if ($meta === null) {
-			return $release === null ? null : $this->upToDate($info, $release['version']);
+			return null;
 		}
 
 		$info->remoteVersion = $meta['version'];

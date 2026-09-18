@@ -5,7 +5,7 @@ declare(strict_types=1);
 foreach ([
 	'EUVersion', 'EUHttp', 'EUExtension', 'EURegistry', 'EUUpdateInfo',
 	'EUGitHub', 'EUSource', 'EUIndexSource', 'EUGitHubSource', 'EUGitSource',
-	'EUArchive', 'EUPaths', 'EUFs', 'EUInstaller', 'EUChecker',
+	'EURepoUrls', 'EUArchive', 'EUPaths', 'EUFs', 'EUInstaller', 'EUChecker',
 ] as $euClass) {
 	require_once __DIR__ . '/lib/' . $euClass . '.php';
 }
@@ -109,20 +109,27 @@ final class ExtensionUpdaterExtension extends Minz_Extension
 	public function checker(bool $includeSelf = true): EUChecker
 	{
 		$github = new EUGitHub($this->confString('github_token', ''));
+		$repoUrls = new EURepoUrls();
 		$sources = [];
 
 		if ($this->confBool('use_official_index', true)) {
-			$sources[] = new EUIndexSource(
+			$index = new EUIndexSource(
 				$this->confString('official_index_url', EUIndexSource::OFFICIAL_URL),
 				$this->t('source_official', 'Official index'),
 				$github
 			);
+			$sources[] = $index;
+			$repoUrls->addIndex($index);
 		}
 		foreach ($this->customIndexUrls() as $url) {
-			$sources[] = new EUIndexSource($url, $this->t('source_custom', 'Custom index'), $github);
+			$index = new EUIndexSource($url, $this->t('source_custom', 'Custom index'), $github);
+			$sources[] = $index;
+			$repoUrls->addIndex($index);
 		}
+		// Runs after the indexes: it reaches the repository itself and so sees
+		// releases the hand-maintained indexes have not caught up with.
 		if ($this->confBool('enable_github', true)) {
-			$sources[] = new EUGitHubSource($github);
+			$sources[] = new EUGitHubSource($github, $repoUrls);
 		}
 		if ($this->confBool('enable_git', true) && EUGitSource::isAvailable()) {
 			$sources[] = new EUGitSource();

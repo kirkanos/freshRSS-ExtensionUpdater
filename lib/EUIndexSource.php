@@ -39,6 +39,14 @@ final class EUIndexSource implements EUSource
 		return $this->error;
 	}
 
+	/** The project URL this index lists for $ext, or '' when it lists none. */
+	public function repoUrlFor(EUExtension $ext): string
+	{
+		$entry = $this->index()[$ext->key()] ?? null;
+		$url = is_array($entry) && is_string($entry['url'] ?? null) ? $entry['url'] : '';
+		return $url;
+	}
+
 	public function check(EUExtension $ext): ?EUUpdateInfo
 	{
 		$index = $this->index();
