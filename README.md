@@ -80,9 +80,15 @@ Every step is written to the FreshRSS log at `notice` level.
   ```
 - **GitHub API rate limit.** The GitHub source is consulted for every extension
   whose repository can be resolved — one request each when a release exists. An
-  instance with many extensions can approach the unauthenticated limit of 60
-  requests per hour. Set a token or raise the cache lifetime if checks start
-  coming back incomplete.
+  instance with many extensions reaches the unauthenticated limit of 60
+  requests per hour easily, especially while re-checking repeatedly.
+
+  Exhausting it is not silent: the overview shows a warning naming the reset
+  time, further API calls are skipped until then, and the result is **not**
+  cached, so the next visit tries again. It still matters, because a
+  rate-limited run falls back to the indexes alone — and an index that lags
+  behind reports an extension as up to date when it is not. Add a GitHub token
+  in the settings to raise the limit to 5000 requests per hour.
 - **Version comparison.** Versions that cannot be compared (`nightly`) never
   report an update — better to miss one than to overwrite a working extension
   with an older copy.

@@ -39,6 +39,12 @@ final class EUIndexSource implements EUSource
 		return $this->error;
 	}
 
+	/** True once the index has been fetched, successfully or not. */
+	public function isLoaded(): bool
+	{
+		return $this->index !== null;
+	}
+
 	/** The project URL this index lists for $ext, or '' when it lists none. */
 	public function repoUrlFor(EUExtension $ext): string
 	{

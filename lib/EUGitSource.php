@@ -20,6 +20,11 @@ final class EUGitSource implements EUSource
 		return 'Git';
 	}
 
+	public function error(): ?string
+	{
+		return null;
+	}
+
 	public static function isAvailable(): bool
 	{
 		if (!function_exists('exec')) {

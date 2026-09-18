@@ -15,12 +15,20 @@ final class EUHttp
 	/** @var string|null Last transport level error, for surfacing in the UI. */
 	public static ?string $lastError = null;
 
+	/** HTTP status of the last response, 0 when the request never completed. */
+	public static int $lastStatus = 0;
+
+	/** @var array<string,string> Response headers of the last response, lower-cased. */
+	public static array $lastHeaders = [];
+
 	/**
 	 * @param array<string,string> $headers
 	 */
 	public static function get(string $url, array $headers = [], int $timeout = 20): ?string
 	{
 		self::$lastError = null;
+		self::$lastStatus = 0;
+		self::$lastHeaders = [];
 
 		if (!self::isAllowedUrl($url)) {
 			self::$lastError = 'Refused non-https URL: ' . $url;
@@ -117,8 +125,16 @@ final class EUHttp
 			CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
 			CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTPS,
 		]);
+		curl_setopt($ch, CURLOPT_HEADERFUNCTION, static function ($ch, string $line): int {
+			$parts = explode(':', $line, 2);
+			if (count($parts) === 2) {
+				self::$lastHeaders[strtolower(trim($parts[0]))] = trim($parts[1]);
+			}
+			return strlen($line);
+		});
 		$body = curl_exec($ch);
 		$status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+		self::$lastStatus = $status;
 		if ($body === false) {
 			self::$lastError = 'cURL: ' . curl_error($ch);
 			curl_close($ch);
@@ -183,6 +199,16 @@ final class EUHttp
 			],
 		]);
 		$body = @file_get_contents($url, false, $context);
+		foreach ($http_response_header ?? [] as $line) {
+			if (preg_match('~^HTTP/\S+\s+(\d{3})~', $line, $m)) {
+				self::$lastStatus = (int)$m[1];
+				continue;
+			}
+			$parts = explode(':', $line, 2);
+			if (count($parts) === 2) {
+				self::$lastHeaders[strtolower(trim($parts[0]))] = trim($parts[1]);
+			}
+		}
 		if ($body === false) {
 			self::$lastError = 'Request failed: ' . $url;
 			return null;

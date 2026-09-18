@@ -27,6 +27,18 @@ final class EUGitHubSource implements EUSource
 		return 'GitHub';
 	}
 
+	public function error(): ?string
+	{
+		if (!$this->github->isRateLimited()) {
+			return null;
+		}
+		$reset = $this->github->rateLimitResetAt();
+		return sprintf(
+			'GitHub API rate limit exhausted; update checks fall back to the indexes until %s. Add a GitHub token in the extension settings to raise the limit from 60 to 5000 requests per hour.',
+			$reset !== null ? date('H:i', $reset) : 'it resets'
+		);
+	}
+
 	public function check(EUExtension $ext): ?EUUpdateInfo
 	{
 		$url = $this->repoUrls !== null ? $this->repoUrls->resolve($ext) : $ext->url;

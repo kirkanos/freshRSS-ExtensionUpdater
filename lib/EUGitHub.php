@@ -6,10 +6,66 @@ declare(strict_types=1);
 final class EUGitHub
 {
 	private string $token;
+	private ?int $rateLimitResetAt = null;
 
 	public function __construct(string $token = '')
 	{
 		$this->token = trim($token);
+	}
+
+	/**
+	 * GitHub answers an exhausted quota with 403 (or 429) and a remaining
+	 * count of zero. Recognising that matters: otherwise every later call
+	 * fails the same way and the whole check silently falls back to whatever
+	 * the indexes happen to say.
+	 *
+	 * @param array<string,string> $headers
+	 */
+	public static function isRateLimitResponse(int $status, array $headers): bool
+	{
+		if ($status !== 403 && $status !== 429) {
+			return false;
+		}
+		$remaining = $headers['x-ratelimit-remaining'] ?? null;
+		return $remaining !== null && (int)$remaining <= 0;
+	}
+
+	public function isRateLimited(): bool
+	{
+		if ($this->rateLimitResetAt === null) {
+			return false;
+		}
+		if ($this->rateLimitResetAt > time()) {
+			return true;
+		}
+		$this->rateLimitResetAt = null;
+		return false;
+	}
+
+	public function rateLimitResetAt(): ?int
+	{
+		return $this->rateLimitResetAt;
+	}
+
+	/** Remembers a quota exhaustion seen on the request that just finished. */
+	private function noteResponse(): void
+	{
+		if (!self::isRateLimitResponse(EUHttp::$lastStatus, EUHttp::$lastHeaders)) {
+			return;
+		}
+		$reset = EUHttp::$lastHeaders['x-ratelimit-reset'] ?? null;
+		$this->rateLimitResetAt = $reset !== null ? (int)$reset : time() + 3600;
+	}
+
+	/** @return array<mixed>|null */
+	private function apiGet(string $url): ?array
+	{
+		if ($this->isRateLimited()) {
+			return null;
+		}
+		$data = EUHttp::getJson($url, $this->headers());
+		$this->noteResponse();
+		return $data;
 	}
 
 	/**
@@ -40,7 +96,7 @@ final class EUGitHub
 	public function latestRelease(string $owner, string $repo): ?array
 	{
 		$url = sprintf('https://api.github.com/repos/%s/%s/releases/latest', rawurlencode($owner), rawurlencode($repo));
-		$data = EUHttp::getJson($url, $this->headers());
+		$data = $this->apiGet($url);
 		if ($data === null) {
 			return null;
 		}
@@ -80,7 +136,7 @@ final class EUGitHub
 	public function defaultBranch(string $owner, string $repo): ?string
 	{
 		$url = sprintf('https://api.github.com/repos/%s/%s', rawurlencode($owner), rawurlencode($repo));
-		$data = EUHttp::getJson($url, $this->headers());
+		$data = $this->apiGet($url);
 		$branch = is_array($data) && is_string($data['default_branch'] ?? null) ? $data['default_branch'] : '';
 		return $branch !== '' ? $branch : null;
 	}

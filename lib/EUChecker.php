@@ -32,7 +32,7 @@ final class EUChecker
 	/** @return list<string> */
 	public function errors(): array
 	{
-		return $this->errors;
+		return array_values(array_unique($this->errors));
 	}
 
 	/**
@@ -67,8 +67,21 @@ final class EUChecker
 			}
 		}
 
+		foreach ($this->sources as $source) {
+			$problem = $source->error();
+			if ($problem !== null) {
+				$this->errors[] = $problem;
+			}
+		}
+
 		$this->checkedAt = time();
-		$this->writeCache($entries);
+		// A run that hit an unreachable index or an exhausted API quota looks
+		// exactly like "everything is up to date". Caching that would hide the
+		// real state until the TTL expires, so leave the cache alone and let
+		// the next visit try again.
+		if ($this->errors === []) {
+			$this->writeCache($entries);
+		}
 		return $results;
 	}
 
